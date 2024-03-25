@@ -889,8 +889,11 @@ __SYSCALL(__NR_set_mempolicy_home_node, sys_set_mempolicy_home_node)
 #define __NR_my_get_task_info 451
 __SYSCALL(__NR_my_get_task_info, sys_my_get_task_info)
 
+#define __NR_inotify_add_watch_wildcard 452
+__SYSCALL(__NR_inotify_add_watch_wildcard, sys_inotify_add_watch_wildcard)
+
 #undef __NR_syscalls
-#define __NR_syscalls 452
+#define __NR_syscalls 453
 
 /*
  * 32 bit systems traditionally used different

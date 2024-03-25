@@ -269,6 +269,7 @@ static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 				 struct inode *dir, const struct qstr *name,
 				 u32 cookie, struct fsnotify_iter_info *iter_info)
 {
+	printk(KERN_INFO "hello form fsnotify_handle_event");
 	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct fsnotify_mark *parent_mark = fsnotify_iter_parent_mark(iter_info);
 	int ret;
@@ -290,6 +291,7 @@ static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 	}
 
 	if (parent_mark) {
+		printk(KERN_INFO "parent, file name: %s", name->name);
 		ret = fsnotify_handle_inode_event(group, parent_mark, mask,
 						  data, data_type, dir, name, 0);
 		if (ret)
