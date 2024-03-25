@@ -531,6 +531,7 @@ struct fsnotify_mark {
 #define FSNOTIFY_MARK_FLAG_NO_IREF		0x0200
 #define FSNOTIFY_MARK_FLAG_HAS_IGNORE_FLAGS	0x0400
 	unsigned int flags;		/* flags [mark->lock] */
+	char *wildcard_pattern;
 };
 
 #ifdef CONFIG_FSNOTIFY

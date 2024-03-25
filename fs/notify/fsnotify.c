@@ -291,7 +291,7 @@ static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 	}
 
 	if (parent_mark) {
-		printk(KERN_INFO "parent, file name: %s", name->name);
+		printk(KERN_INFO "parent, file name: %s [[%s]]", name->name, parent_mark->wildcard_pattern);
 		ret = fsnotify_handle_inode_event(group, parent_mark, mask,
 						  data, data_type, dir, name, 0);
 		if (ret)

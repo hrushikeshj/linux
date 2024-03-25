@@ -590,8 +590,9 @@ out:
 
 static int inotify_new_watch(struct fsnotify_group *group,
 			     struct inode *inode,
-			     u32 arg)
+			     u32 arg, char *pattern)
 {
+	printk(KERN_INFO "1. From inotify_new_watch");
 	struct inotify_inode_mark *tmp_i_mark;
 	int ret;
 	struct idr *idr = &group->inotify_data.idr;
@@ -602,6 +603,7 @@ static int inotify_new_watch(struct fsnotify_group *group,
 		return -ENOMEM;
 
 	fsnotify_init_mark(&tmp_i_mark->fsn_mark, group);
+	tmp_i_mark->fsn_mark.wildcard_pattern = pattern;
 	tmp_i_mark->fsn_mark.mask = inotify_arg_to_mask(inode, arg);
 	tmp_i_mark->fsn_mark.flags = inotify_arg_to_flags(arg);
 	tmp_i_mark->wd = -1;
@@ -636,7 +638,7 @@ out_err:
 	return ret;
 }
 
-static int inotify_update_watch(struct fsnotify_group *group, struct inode *inode, u32 arg)
+static int inotify_update_watch(struct fsnotify_group *group, struct inode *inode, u32 arg, char *pattern)
 {
 	int ret = 0;
 
@@ -645,7 +647,7 @@ static int inotify_update_watch(struct fsnotify_group *group, struct inode *inod
 	ret = inotify_update_existing_watch(group, inode, arg);
 	/* no mark present, try to add a new one */
 	if (ret == -ENOENT)
-		ret = inotify_new_watch(group, inode, arg);
+		ret = inotify_new_watch(group, inode, arg, pattern);
 	fsnotify_group_unlock(group);
 
 	return ret;
@@ -784,7 +786,7 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
 	group = f.file->private_data;
 
 	/* create/update an inode mark */
-	ret = inotify_update_watch(group, inode, mask);
+	ret = inotify_update_watch(group, inode, mask, NULL);
 	path_put(&path);
 fput_and_out:
 	fdput(f);
@@ -849,7 +851,7 @@ SYSCALL_DEFINE3(inotify_add_watch_wildcard, int, fd, const char __user *, pathna
 	group = f.file->private_data;
 
 	/* create/update an inode mark */
-	ret = inotify_update_watch(group, inode, mask);
+	ret = inotify_update_watch(group, inode, mask, "wildcard_file__");
 	path_put(&path);
 fput_and_out:
 	fdput(f);
