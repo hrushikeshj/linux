@@ -593,6 +593,7 @@ static int inotify_new_watch(struct fsnotify_group *group,
 			     u32 arg, char *pattern)
 {
 	printk(KERN_INFO "1. From inotify_new_watch");
+	printk(KERN_DEBUG "2. From inotify_new_watch, %s", pattern);
 	struct inotify_inode_mark *tmp_i_mark;
 	int ret;
 	struct idr *idr = &group->inotify_data.idr;
@@ -793,8 +794,30 @@ fput_and_out:
 	return ret;
 }
 
+static char* extract_pattern(char *path, char __user * usr_pathname)
+{
+	int i, c, last_slash = 0;
+	for(i=0; path[i] != '\0'; i++) {
+		if (path[i] == '/')
+			last_slash = i;
+	}
 
-SYSCALL_DEFINE3(inotify_add_watch_wildcard, int, fd, const char __user *, pathname,
+	if(last_slash == i-1)
+		return NULL;
+	
+	put_user('\0', usr_pathname+(last_slash+1));
+
+	char *pattern = kmalloc(sizeof(char)*300, GFP_KERNEL);
+	c = 0;
+	for(i=last_slash+1; path[i] != '\0'; i++){
+		pattern[c++] = path[i];
+	}
+	pattern[c] = '\0';
+
+	return pattern;
+}
+
+SYSCALL_DEFINE3(inotify_add_watch_wildcard, int, fd, char __user *, pathname,
 		u32, mask)
 {
 	struct fsnotify_group *group;
@@ -803,6 +826,9 @@ SYSCALL_DEFINE3(inotify_add_watch_wildcard, int, fd, const char __user *, pathna
 	struct fd f;
 	int ret;
 	unsigned flags = 0;
+	int sbub_len = 300;
+	char sbuf[sbub_len], *pattern ;
+	sbuf[sbub_len-1] = '\0';
 
 	/*
 	 * We share a lot of code with fs/dnotify.  We also share
@@ -841,6 +867,15 @@ SYSCALL_DEFINE3(inotify_add_watch_wildcard, int, fd, const char __user *, pathna
 	if (mask & IN_ONLYDIR)
 		flags |= LOOKUP_DIRECTORY;
 
+	// copy pathname from userspace
+	if(strncpy_from_user(sbuf, pathname, sbub_len-1) == -EFAULT){
+		printk(KERN_DEBUG "strncpy_from_user failed in inotify");
+		return -1;
+	}
+	pattern = extract_pattern(sbuf, pathname);
+
+	printk(KERN_DEBUG "pathname copied: %s", sbuf);
+
 	ret = inotify_find_inode(pathname, &path, flags,
 			(mask & IN_ALL_EVENTS));
 	if (ret)
@@ -851,7 +886,7 @@ SYSCALL_DEFINE3(inotify_add_watch_wildcard, int, fd, const char __user *, pathna
 	group = f.file->private_data;
 
 	/* create/update an inode mark */
-	ret = inotify_update_watch(group, inode, mask, "wildcard_file__");
+	ret = inotify_update_watch(group, inode, mask, pattern);
 	path_put(&path);
 fput_and_out:
 	fdput(f);
