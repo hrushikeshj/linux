@@ -264,6 +264,43 @@ static int fsnotify_handle_inode_event(struct fsnotify_group *group,
 	return ops->handle_inode_event(inode_mark, mask, inode, dir, name, cookie);
 }
 
+static int find_strlen(char* p) {
+    int count = 0;
+    while (*p != '\0') {
+        count++;
+        p++;
+    }
+    return count;
+}
+
+static int match_pattern(char *pattern, char *text) {
+	if (pattern == NULL)
+		return 0;
+
+    // If both text and pattern are empty, it's a match
+    if (*pattern == '\0' && *text == '\0')
+        return 1;
+
+    // If the pattern is "*" and text is empty, it's a match
+    if (*pattern == '*' && *(pattern + 1) != '\0' && *text == '\0')
+        return 0;
+
+    // If the characters at current positions match or pattern has '?', move forward in both text and pattern
+    if (*pattern == '?' || *pattern == *text)
+        return match_pattern(pattern + 1, text + 1);
+
+    // If the pattern has "*", try all possibilities
+    if (*pattern == '*') {
+        int len = find_strlen(text);
+        for (int i = 0; i <= len; i++) {
+            if (match_pattern(pattern + 1, text + i))
+                return 1;
+        }
+    }
+
+    return 0; // No match found
+}
+
 static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 				 const void *data, int data_type,
 				 struct inode *dir, const struct qstr *name,
@@ -272,7 +309,7 @@ static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 	printk(KERN_INFO "hello form fsnotify_handle_event");
 	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct fsnotify_mark *parent_mark = fsnotify_iter_parent_mark(iter_info);
-	int ret;
+	int ret, handel;
 
 	if (WARN_ON_ONCE(fsnotify_iter_sb_mark(iter_info)) ||
 	    WARN_ON_ONCE(fsnotify_iter_vfsmount_mark(iter_info)))
@@ -292,10 +329,20 @@ static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 
 	if (parent_mark) {
 		printk(KERN_INFO "parent, file name: %s [[%s]]", name->name, parent_mark->wildcard_pattern);
-		ret = fsnotify_handle_inode_event(group, parent_mark, mask,
-						  data, data_type, dir, name, 0);
-		if (ret)
-			return ret;
+		handel = 0;
+		if(parent_mark->wildcard_pattern) {
+			if(match_pattern(parent_mark->wildcard_pattern, name->name))
+				handel = 1;
+		}
+		else
+			handel = 1;
+
+		if(handel){
+			ret = fsnotify_handle_inode_event(group, parent_mark, mask,
+							data, data_type, dir, name, 0);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (!inode_mark)
